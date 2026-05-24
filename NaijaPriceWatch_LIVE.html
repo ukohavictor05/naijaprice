@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NaijaPriceWatch — Real Prices, Real Nigerians</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --green:#007A3D;--green2:#00A651;--green3:#4ade80;--green-dark:#004d26;
+  --gold:#F4B000;--gold2:#fbbf24;--gold-light:#fef3c7;
+  --bg:#f7faf8;--bg2:#edf5f0;--surface:#fff;--surface2:#f0f9f3;
+  --text:#111;--text2:#444;--text3:#888;
+  --border:#d4e8db;--border2:#b5d9c4;
+  --red:#ef4444;--blue:#3b82f6;
+  --radius:14px;--radius-sm:8px;--radius-lg:20px;
+  --shadow:0 2px 12px rgba(0,122,61,.08);
+  --shadow-md:0 4px 24px rgba(0,122,61,.13);
+  --shadow-lg:0 8px 40px rgba(0,122,61,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+h1,h2,h3{font-family:'Sora',sans-serif}
+button{cursor:pointer;font-family:'DM Sans',sans-serif}
+input,select,textarea{font-family:'DM Sans',sans-serif}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--green2);outline-offset:1px}
+.hidden{display:none!important}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--green);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+.loader-flag{font-size:64px;animation:pulse 1s infinite alternate}
+.loader-text{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff;margin-top:16px;letter-spacing:2px}
+.loader-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:6px;letter-spacing:1px}
+.loader-bar{width:200px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;margin-top:20px;overflow:hidden}
+.loader-fill{height:100%;background:#fff;border-radius:2px;animation:fill 2s ease-out forwards}
+.loader-status{font-size:11px;color:rgba(255,255,255,.6);margin-top:12px;letter-spacing:1px;min-height:16px}
+@keyframes fill{from{width:0}to{width:100%}}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+
+/* ROLE GATE */
+#roleGate{position:fixed;inset:0;background:linear-gradient(135deg,var(--green) 0%,#004d26 100%);display:flex;align-items:center;justify-content:center;z-index:9998;padding:20px}
+.role-card{background:#fff;border-radius:24px;padding:40px 36px;max-width:420px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.role-flag{font-size:52px;margin-bottom:12px}
+.role-title{font-family:'Sora',sans-serif;font-size:26px;font-weight:900;color:var(--green);margin-bottom:4px}
+.role-sub{font-size:13px;color:var(--text3);margin-bottom:32px}
+.role-btn{display:flex;flex-direction:column;gap:12px}
+.rbtn{padding:16px 24px;border-radius:14px;border:2px solid;font-size:15px;font-weight:700;font-family:'Sora',sans-serif;transition:all .2s;display:flex;align-items:center;gap:12px;width:100%}
+.rbtn-buyer{background:var(--surface2);border-color:var(--green);color:var(--green)}
+.rbtn-buyer:hover{background:var(--green);color:#fff}
+.rbtn-seller{background:var(--green);border-color:var(--green);color:#fff}
+.rbtn-seller:hover{background:var(--green-dark)}
+.rbtn-icon{font-size:24px}
+.rbtn-text{text-align:left}
+.rbtn-label{font-size:15px;font-weight:700;display:block}
+.rbtn-desc{font-size:11px;font-weight:400;opacity:.8;display:block}
+
+/* AUTH MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9000;padding:20px;backdrop-filter:blur(4px)}
+.modal-card{background:#fff;border-radius:20px;padding:36px 32px;max-width:460px;width:100%;box-shadow:var(--shadow-lg);animation:slideUp .3s ease;max-height:90vh;overflow-y:auto}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:var(--green);margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--text3);margin-bottom:24px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
+.field input,.field select{width:100%;padding:11px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);background:var(--bg);transition:border .2s}
+.field input:focus,.field select:focus{border-color:var(--green2)}
+.err-msg{font-size:11px;color:var(--red);margin-top:3px}
+.auth-btn{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:'Sora',sans-serif;margin-top:8px;transition:background .2s}
+.auth-btn:hover{background:var(--green-dark)}
+.auth-btn:disabled{opacity:.6}
+.google-btn{width:100%;padding:12px;background:#fff;color:#333;border:2px solid #ddd;border-radius:10px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:all .2s}
+.google-btn:hover{border-color:#888;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.divider-or{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--text3);font-size:12px}
+.divider-or::before,.divider-or::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-toggle{text-align:center;font-size:13px;color:var(--text3);margin-top:14px}
+.auth-toggle a{color:var(--green);font-weight:600;cursor:pointer}
+
+/* HEADER */
+header{background:#fff;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.header-inner{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;align-items:center;gap:16px;height:64px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer}
+.logo-flag{font-size:28px}
+.logo-text{font-family:'Sora',sans-serif;font-weight:900;font-size:18px;color:var(--green)}
+.logo-text span{color:var(--gold)}
+.logo-tagline{font-size:9px;letter-spacing:2px;color:var(--text3);display:block;margin-top:-2px}
+.header-stats{display:flex;gap:12px;margin-left:auto}
+.hstat{display:flex;flex-direction:column;align-items:center;padding:4px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)}
+.hstat-n{font-family:'Sora',sans-serif;font-size:16px;font-weight:800;color:var(--green);line-height:1}
+.hstat-l{font-size:8px;letter-spacing:1.5px;color:var(--text3);margin-top:1px;text-transform:uppercase}
+.live-dot{width:8px;height:8px;background:#22c55e;border-radius:50%;display:inline-block;margin-right:4px;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.user-pill{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:30px;font-size:13px;font-weight:600;color:var(--green);cursor:pointer;transition:all .2s}
+.user-pill:hover{border-color:var(--green2);background:var(--green);color:#fff}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.admin-btn{padding:6px 14px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:11px;font-weight:700;letter-spacing:1px;font-family:'Sora',sans-serif}
+.admin-btn:hover{background:#d4960a}
+
+/* TICKER */
+.ticker{background:var(--green);color:#fff;padding:8px 20px;overflow:hidden}
+.ticker-inner{display:flex;align-items:center;gap:12px}
+.ticker-tag{background:var(--gold);color:#000;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:800;letter-spacing:2px;flex-shrink:0;font-family:'Sora',sans-serif}
+.ticker-track{overflow:hidden;flex:1}
+.ticker-scroll{display:flex;animation:scroll 80s linear infinite;white-space:nowrap}
+.ticker-scroll:hover{animation-play-state:paused}
+.ticker-item{font-size:12px;padding:0 20px;border-right:1px solid rgba(255,255,255,.25)}
+.ticker-item strong{color:var(--gold)}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* NAV */
+nav{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:4px;overflow-x:auto}
+.nav-btn{padding:14px 16px;border:none;background:transparent;font-size:13px;font-weight:600;color:var(--text2);border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
+.nav-btn:hover{color:var(--green)}
+.nav-btn.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* MAIN */
+main{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+
+/* BANNER */
+.banner{display:flex;align-items:center;gap:10px;background:var(--gold-light);border:1.5px solid var(--gold2);border-left:4px solid var(--gold);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:#7c5000;flex-wrap:wrap}
+
+/* FILTERS */
+.filter-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-row input[type=text]{flex:1;min-width:180px;padding:10px 16px;border:2px solid var(--border);border-radius:10px;font-size:14px}
+.filter-row select{padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:13px;background:#fff}
+.cat-pills{display:flex;gap:6px;flex-wrap:wrap}
+.cat-pill{padding:6px 14px;border:1.5px solid var(--border2);border-radius:20px;background:#fff;font-size:12px;font-weight:600;color:var(--text2);transition:all .15s}
+.cat-pill:hover,.cat-pill.active{background:var(--green);border-color:var(--green);color:#fff}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:28px}
+.card{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),var(--gold))}
+.card:hover{border-color:var(--green2);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.card.expanded{border-color:var(--green);box-shadow:var(--shadow-md)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.card-icon{font-size:28px}
+.card-cat{font-size:9px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;padding:3px 7px;background:var(--surface2);border-radius:4px;color:var(--green)}
+.card-name{font-size:12px;color:var(--text2);margin-bottom:6px;line-height:1.3}
+.card-price{font-family:'Sora',sans-serif;font-size:22px;font-weight:900;color:var(--green)}
+.card-meta{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3)}
+.card-change{font-size:11px;font-weight:700;margin-top:4px}
+.card-change.up{color:var(--red)}
+.card-change.down{color:#22c55e}
+.card-footer{display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--text3);border-top:1px solid var(--border);padding-top:8px}
+.card-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.card-act-btn{padding:5px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:10px;font-weight:600;background:#fff;color:var(--text2);transition:all .15s}
+.card-act-btn:hover{border-color:var(--green);color:var(--green);background:var(--surface2)}
+.no-data{font-size:11px;color:var(--text3);font-style:italic;padding:8px 0}
+.new-badge{background:#22c55e;color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;margin-left:4px;vertical-align:middle}
+
+/* LISTINGS */
+.listings-section{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.listings-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.listing-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--bg);margin-bottom:5px;font-size:12px;border:1px solid var(--border);gap:8px;flex-wrap:wrap}
+.listing-row.cheapest{background:#f0fdf4;border-color:var(--green3)}
+.listing-cheap-badge{font-size:9px;font-weight:700;color:var(--green);background:#dcfce7;padding:2px 6px;border-radius:4px;margin-left:4px}
+.listing-shop{font-weight:600;color:var(--text)}
+.listing-loc{color:var(--text3);font-size:10px}
+.listing-seller-link{font-size:10px;color:var(--green);font-weight:600;cursor:pointer;display:block;margin-top:2px}
+.listing-seller-link:hover{text-decoration:underline}
+.listing-price{font-family:'Sora',sans-serif;font-weight:800;color:var(--green);font-size:13px}
+.map-btn{padding:4px 8px;background:var(--green);color:#fff;border:none;border-radius:5px;font-size:9px;font-weight:700;cursor:pointer;flex-shrink:0}
+
+/* MAP MODAL */
+.map-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.map-card{background:#fff;border-radius:20px;width:100%;max-width:700px;max-height:90vh;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
+.map-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.map-header h3{font-family:'Sora',sans-serif;font-size:16px;font-weight:800;color:var(--green)}
+.map-close{background:var(--bg2);border:none;border-radius:8px;padding:6px 12px;font-size:20px;cursor:pointer}
+.map-body{flex:1;overflow-y:auto;padding:16px 20px}
+.map-iframe-wrap{border-radius:10px;overflow:hidden;margin-bottom:16px;border:2px solid var(--border)}
+.map-iframe-wrap iframe{width:100%;height:300px;border:none}
+.market-item{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.market-item.cheapest{border-color:var(--green2);background:#f0fdf4}
+.market-item h4{font-size:13px;font-weight:700}
+.market-item p{font-size:11px;color:var(--text3)}
+.market-price{font-family:'Sora',sans-serif;font-size:18px;font-weight:900;color:var(--green)}
+.directions-btn{padding:6px 12px;background:var(--blue);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;text-decoration:none;display:inline-block;cursor:pointer}
+
+/* CONTROLS */
+.controls{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.ctrl-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px}
+.ctrl-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
+.ctrl-select{padding:10px 12px;border:2px solid var(--border);border-radius:10px;font-size:13px;background:#fff}
+
+/* CHART */
+.chart-box{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.chart-title{font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px}
+.trend-summary{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;font-weight:600;flex-wrap:wrap}
+.trend-pct.up{color:var(--red)}
+.trend-pct.down{color:#22c55e}
+
+/* SUBMIT */
+.submit-wrap{display:flex;gap:18px;flex-wrap:wrap}
+.submit-card{flex:2;min-width:260px;background:#fff;border:2px solid var(--border);border-radius:var(--radius-lg);padding:24px}
+.submit-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:900;color:var(--green);margin-bottom:4px}
+.submit-sub{font-size:12px;color:var(--text3);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:6px}
+.form-input,.form-select{width:100%;padding:11px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);color:var(--text);transition:border .2s}
+.form-input:focus,.form-select:focus{border-color:var(--green2)}
+.price-row{display:flex;align-items:center;border:2px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg)}
+.price-row:focus-within{border-color:var(--green2)}
+.naira-sign{padding:0 12px;font-size:18px;font-weight:800;color:var(--gold);font-family:'Sora',sans-serif}
+.price-input{flex:1;border:none;background:transparent;padding:11px 12px 11px 0;font-size:16px;font-weight:700;color:var(--text);font-family:'Sora',sans-serif}
+.price-input:focus{outline:none}
+.form-hint{font-size:10px;color:var(--text3);margin-top:4px;font-style:italic}
+.big-btn{width:100%;padding:15px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;font-family:'Sora',sans-serif;letter-spacing:.5px;margin-top:8px;transition:all .2s}
+.big-btn:hover:not(:disabled){background:var(--green-dark);transform:translateY(-1px)}
+.big-btn:disabled{opacity:.6}
+.form-note{font-size:10px;color:var(--text3);margin-top:8px;text-align:center}
+.why-box{flex:1;min-width:200px;background:var(--surface2);border:2px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+.why-item{display:flex;gap:10px;margin-bottom:14px;align-items:flex-start}
+.why-text{font-size:12px;color:var(--text2);line-height:1.6}
+
+/* CUSTOM COMMODITY */
+.add-comm-section{background:var(--surface2);border:2px dashed var(--border2);border-radius:var(--radius);padding:20px;margin-bottom:20px;text-align:center}
+.add-comm-section h3{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px}
+.add-comm-section p{font-size:12px;color:var(--text3);margin-bottom:16px}
+.add-comm-form{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:620px;margin:0 auto}
+.add-comm-form input,.add-comm-form select{flex:1;min-width:130px;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:13px;background:#fff}
+.add-comm-btn{padding:10px 20px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:'Sora',sans-serif}
+
+/* COMMENTS */
+.comments-section{margin-top:16px}
+.comments-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.comment-form{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px}
+.comment-form textarea{width:100%;border:none;background:transparent;font-size:13px;resize:none;color:var(--text);line-height:1.6}
+.comment-form textarea:focus{outline:none}
+.comment-form-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px}
+.comment-post-btn{padding:7px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;font-family:'Sora',sans-serif}
+.comment{background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.comment-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--green);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Sora',sans-serif}
+.avatar.seller{background:var(--gold);color:#000}
+.comment-author{font-size:12px;font-weight:700;color:var(--text)}
+.comment-badge{font-size:9px;padding:2px 6px;background:var(--green);color:#fff;border-radius:4px;font-weight:700}
+.comment-badge.seller-badge{background:var(--gold);color:#000}
+.comment-time{font-size:10px;color:var(--text3);margin-left:auto}
+.comment-text{font-size:13px;color:var(--text);line-height:1.6;margin-left:38px}
+.comment-actions{display:flex;gap:8px;margin-top:8px;margin-left:38px}
+.like-btn,.reply-btn{background:transparent;border:1.5px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;transition:all .15s}
+.like-btn:hover,.reply-btn:hover{border-color:var(--green);color:var(--green)}
+.like-btn.liked{background:var(--surface2);border-color:var(--green);color:var(--green)}
+.reply{background:var(--bg);border-left:3px solid var(--border2);margin:6px 0 0 28px;padding:8px 10px;border-radius:0 8px 8px 0}
+.reply-form{margin:8px 0 0 28px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px}
+.reply-form textarea{width:100%;border:none;background:transparent;font-size:12px;resize:none;color:var(--text)}
+.reply-form textarea:focus{outline:none}
+.reply-form-footer{display:flex;justify-content:flex-end;margin-top:6px}
+.reply-send-btn{padding:5px 14px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;font-family:'Sora',sans-serif}
+
+/* SELLERS */
+.seller-dash{background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%);color:#fff;border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.seller-dash h2{font-family:'Sora',sans-serif;font-size:18px;font-weight:800;margin-bottom:4px}
+.seller-dash p{font-size:12px;opacity:.8}
+.seller-dash-stats{display:flex;gap:16px}
+.sds{background:rgba(255,255,255,.15);border-radius:10px;padding:10px 16px;text-align:center}
+.sds span:first-child{display:block;font-family:'Sora',sans-serif;font-size:22px;font-weight:900}
+.sds span:last-child{font-size:10px;opacity:.8;letter-spacing:1px}
+
+/* CONTACT MODAL */
+.contact-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.contact-card{background:#fff;border-radius:20px;width:100%;max-width:400px;padding:28px;box-shadow:var(--shadow-lg)}
+.contact-info-row{display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.contact-detail{font-size:13px;font-weight:600}
+.contact-label{font-size:10px;color:var(--text3)}
+.whatsapp-btn{width:100%;padding:12px;background:#25d366;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:'Sora',sans-serif;margin-top:8px;cursor:pointer}
+.close-btn{width:100%;padding:10px;background:var(--bg2);color:var(--text2);border:none;border-radius:10px;font-size:13px;font-weight:600;margin-top:8px;cursor:pointer}
+
+/* EARN */
+.earn-header{background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%);color:#fff;border-radius:var(--radius-lg);padding:28px;margin-bottom:24px}
+.earn-header h2{font-family:'Sora',sans-serif;font-size:22px;font-weight:900;margin-bottom:6px}
+.tier-box{background:#fff;border:2px solid var(--border);border-top:4px solid;border-radius:var(--radius);padding:22px;margin-bottom:16px}
+.tier-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.tier-tag{font-size:10px;font-weight:800;letter-spacing:2px;padding:4px 10px;border:2px solid;border-radius:6px;font-family:'Sora',sans-serif}
+.method-card{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+.method-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.method-name{font-size:13px;font-weight:700}
+.method-desc{font-size:12px;color:var(--text2);line-height:1.7}
+
+/* ADMIN */
+.admin-section{background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.admin-section-title{font-family:'Sora',sans-serif;font-size:14px;font-weight:800;color:var(--green);margin-bottom:14px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.stat-card-n{font-family:'Sora',sans-serif;font-size:26px;font-weight:900;color:var(--green)}
+.stat-card-l{font-size:11px;color:var(--text3);margin-top:2px}
+.admin-table{width:100%;border-collapse:collapse;font-size:12px}
+.admin-table th{background:var(--surface2);padding:8px 10px;text-align:left;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);font-size:10px;text-transform:uppercase}
+.admin-table td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.admin-table tr:hover td{background:var(--bg)}
+.del-btn{padding:3px 8px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer}
+.export-btn{padding:10px 20px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer;margin-bottom:16px;margin-right:8px}
+.activity-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:6px;font-size:12px;border:1px solid var(--border)}
+.activity-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+.activity-time{margin-left:auto;color:var(--text3);font-size:10px;white-space:nowrap}
+
+/* PIN */
+.pin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:8900;backdrop-filter:blur(4px)}
+.pin-card{background:#fff;border-radius:20px;padding:32px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow-lg)}
+.pin-input{width:100%;padding:14px;text-align:center;font-size:20px;letter-spacing:4px;border:2px solid var(--border);border-radius:10px;font-family:'DM Mono',monospace;font-weight:700}
+.pin-submit{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;margin-top:12px;cursor:pointer;font-family:'Sora',sans-serif}
+.pin-cancel{width:100%;padding:10px;background:var(--bg2);color:var(--text2);border:none;border-radius:10px;font-size:13px;cursor:pointer;margin-top:8px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:#222;color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:var(--shadow-lg);animation:slideIn .3s ease;max-width:320px}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+.toast.warning{background:var(--gold);color:#000}
+
+/* LOADING STATE */
+.loading-state{text-align:center;padding:40px;color:var(--text3)}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:600px){
+  .header-stats{display:none}
+  main{padding:16px 12px 60px}
+  .grid{grid-template-columns:1fr 1fr}
+  .modal-card{padding:24px 20px}
+}
+@media(max-width:400px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-flag">🇳🇬</div>
+  <div class="loader-text">NAIJAPRICE<span style="color:var(--gold)">WATCH</span></div>
+  <div class="loader-sub">REAL PRICES · REAL NIGERIANS · NO CAP</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+  <div class="loader-status" id="loaderStatus">Connecting to database...</div>
+</div>
+
+<!-- ROLE GATE -->
+<div id="roleGate" class="hidden">
+  <div class="role-card">
+    <div class="role-flag">🇳🇬</div>
+    <div class="role-title">Welcome to NaijaPriceWatch</div>
+    <div class="role-sub">Real market prices from real Nigerians. Are you a buyer or a seller?</div>
+    <div class="role-btn">
+      <button class="rbtn rbtn-buyer" onclick="setRole('buyer')">
+        <span class="rbtn-icon">🛒</span>
+        <span class="rbtn-text">
+          <span class="rbtn-label">I'm a Buyer</span>
+          <span class="rbtn-desc">Browse prices — no account needed</span>
+        </span>
+      </button>
+      <button class="rbtn rbtn-seller" onclick="setRole('seller')">
+        <span class="rbtn-icon">🏪</span>
+        <span class="rbtn-text">
+          <span class="rbtn-label">I'm a Seller / Reporter</span>
+          <span class="rbtn-desc">Post prices, add your shop, contact buyers</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div id="authTitle" class="modal-title">Create Seller Account</div>
+    <div id="authSubtext" class="modal-sub">Join thousands of Naija sellers sharing real prices</div>
+    <button class="google-btn" onclick="googleSignIn()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <div class="divider-or">or</div>
+    <div id="signupExtra" class="hidden">
+      <div class="field"><label>Full Name / Shop Name</label><input type="text" id="authName" placeholder="e.g. Mama Ngozi Market Store"/></div>
+      <div class="field"><label>Phone Number</label><input type="tel" id="authPhone" placeholder="08012345678"/></div>
+      <div class="field"><label>State / City</label><select id="authState"><option value="">Select state...</option></select></div>
+      <div class="field"><label>Market / Shop Location</label><input type="text" id="authShop" placeholder="e.g. Mile 12 Market, Shop 42"/></div>
+    </div>
+    <div class="field"><label id="authEmailLabel">Email</label><input type="email" id="authEmail" placeholder="your@email.com"/></div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="authPassword" placeholder="Min 6 chars, 1 capital, 1 number"/>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">At least 6 characters · one capital letter · one number</div>
+      <div class="err-msg hidden" id="authErr"></div>
+    </div>
+    <button class="auth-btn" id="authSubmitBtn" onclick="submitAuth()"><span id="authBtnText">Create Account</span></button>
+    <div class="auth-toggle" id="authToggleText">Already have an account? <a onclick="toggleAuthMode()">Login here</a></div>
+  </div>
+</div>
+
+<!-- PIN OVERLAY -->
+<div id="pinOverlay" class="pin-overlay hidden">
+  <div class="pin-card">
+    <div style="font-size:36px;margin-bottom:12px">🔐</div>
+    <h3 style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:var(--green);margin-bottom:6px">Admin Access</h3>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:20px">Enter your admin PIN</p>
+    <input type="password" class="pin-input" id="pinInput" placeholder="••••••••" maxlength="30"/>
+    <div class="err-msg hidden" id="pinErr" style="text-align:center;margin-top:6px"></div>
+    <button class="pin-submit" onclick="checkPin()">Unlock Dashboard</button>
+    <button class="pin-cancel" onclick="document.getElementById('pinOverlay').classList.add('hidden')">Cancel</button>
+  </div>
+</div>
+
+<!-- MAP MODAL -->
+<div id="mapModal" class="map-modal hidden">
+  <div class="map-card">
+    <div class="map-header">
+      <h3 id="mapModalTitle">📍 Market Locations</h3>
+      <button class="map-close" onclick="closeMap()">✕</button>
+    </div>
+    <div class="map-body">
+      <div class="map-iframe-wrap"><iframe id="mapIframe" src="" allowfullscreen loading="lazy"></iframe></div>
+      <div id="marketList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT MODAL -->
+<div id="contactModal" class="contact-modal hidden">
+  <div class="contact-card">
+    <div style="font-size:36px;margin-bottom:8px">🏪</div>
+    <h3 id="contactSellerName" style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:var(--green);margin-bottom:4px">Seller</h3>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px">Contact this seller for prices and market location</p>
+    <div id="contactDetails"></div>
+    <button class="whatsapp-btn" id="whatsappBtn">💬 Chat on WhatsApp</button>
+    <button class="close-btn" onclick="document.getElementById('contactModal').classList.add('hidden')">Close</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- HEADER -->
+<header id="appHeader" class="hidden">
+  <div class="header-inner">
+    <div class="logo" onclick="setView('dashboard')">
+      <span class="logo-flag">🇳🇬</span>
+      <div>
+        <span class="logo-text">NAIJAPRICE<span>WATCH</span></span>
+        <span class="logo-tagline"><span class="live-dot"></span>LIVE PRICES · REAL NIGERIANS · NO CAP</span>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="hstat"><span class="hstat-n" id="statReports">—</span><span class="hstat-l">Reports</span></div>
+      <div class="hstat"><span class="hstat-n" id="statStates">20</span><span class="hstat-l">States</span></div>
+      <div class="hstat"><span class="hstat-n" id="statComments">—</span><span class="hstat-l">Comments</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <div id="userPill" class="user-pill hidden" onclick="handleUserClick()">
+        <div class="user-avatar" id="userAvatarBtn">?</div>
+        <span id="userNameDisplay">Guest</span>
+      </div>
+      <button class="admin-btn" onclick="showPinPrompt()">🔐 ADMIN</button>
+    </div>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div id="tickerBar" class="ticker hidden">
+  <div class="ticker-inner">
+    <span class="ticker-tag">⚡ LIVE</span>
+    <div class="ticker-track"><div class="ticker-scroll" id="tickerContent"></div></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="appNav" class="hidden">
+  <button class="nav-btn active" data-view="dashboard" onclick="setView('dashboard')">📊 Prices</button>
+  <button class="nav-btn" data-view="trends" onclick="setView('trends')">📈 Trends</button>
+  <button class="nav-btn" data-view="submit" onclick="setView('submit')">➕ Report Price</button>
+  <button class="nav-btn" data-view="sellers" onclick="setView('sellers')">🏪 Sellers</button>
+  <button class="nav-btn" id="earnNavBtn" data-view="earn" onclick="setView('earn')" style="display:none">💰 Earn</button>
+  <button class="nav-btn" id="adminNavBtn" data-view="admin" onclick="setView('admin')" style="display:none">🔐 Admin</button>
+</nav>
+
+<!-- MAIN -->
+<main id="appMain" class="hidden">
+
+  <!-- DASHBOARD -->
+  <div id="view-dashboard">
+    <div class="banner">⚠️ Nigeria inflation: <strong>15.69%</strong> (April 2026) · Food: <strong>14.31%</strong> · Prices submitted by real Nigerians — verify before buying</div>
+    <div class="add-comm-section">
+      <h3>➕ Can't find your commodity?</h3>
+      <p>Add plantain, pepper, oha leaf, soup ingredients, or anything Nigerians buy daily</p>
+      <div class="add-comm-form">
+        <input type="text" id="newCommodityName" placeholder="e.g. Plantain (bunch)" maxlength="60"/>
+        <input type="text" id="newCommodityEmoji" placeholder="Emoji 🍌" maxlength="4"/>
+        <select id="newCommodityCategory"><option value="Food">Food</option><option value="Energy">Energy</option><option value="Transport">Transport</option><option value="Building">Building</option><option value="Household">Household</option><option value="Other">Other</option></select>
+        <input type="text" id="newCommodityUnit" placeholder="Unit (bunch, kg...)" maxlength="20"/>
+        <button class="add-comm-btn" onclick="addCustomCommodity()">+ Add Item</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="searchInput" placeholder="🔍 Search commodity..." oninput="renderDashboard()"/>
+      <select id="stateFilter" onchange="renderDashboard()"><option value="All States">All States</option></select>
+      <div class="cat-pills" id="catPills"></div>
+    </div>
+    <div class="grid" id="priceGrid"></div>
+  </div>
+
+  <!-- TRENDS -->
+  <div id="view-trends" class="hidden">
+    <div class="controls">
+      <div class="ctrl-group"><label class="ctrl-label">Commodity</label><select class="ctrl-select" id="trendItem" onchange="renderTrend()"></select></div>
+      <div class="ctrl-group"><label class="ctrl-label">State</label><select class="ctrl-select" id="trendState" onchange="renderTrend()"><option value="All States">All States</option></select></div>
+    </div>
+    <div class="chart-box"><div class="chart-title" id="chartTitle">Price Trend</div><canvas id="priceChart" height="100"></canvas></div>
+    <div id="trendSummary" class="trend-summary hidden"></div>
+    <div id="trendComments"></div>
+  </div>
+
+  <!-- SUBMIT -->
+  <div id="view-submit" class="hidden">
+    <div class="submit-wrap">
+      <div class="submit-card">
+        <div class="submit-title">📣 Report a Market Price</div>
+        <div class="submit-sub">Help millions of Nigerians know the real price of things</div>
+        <div class="form-group"><label class="form-label">Commodity</label><select class="form-select" id="submitItem" onchange="updatePriceHint()"></select></div>
+        <div class="form-group"><label class="form-label">State / City</label><select class="form-select" id="submitState"></select></div>
+        <div class="form-group"><label class="form-label">Market / Shop Name</label><input class="form-input" type="text" id="submitShop" placeholder="e.g. Mile 12 Market, Shop A4"/></div>
+        <div class="form-group"><label class="form-label">Shop Address / Landmark</label><input class="form-input" type="text" id="submitLocation" placeholder="e.g. Behind First Bank, Oshodi"/></div>
+        <div class="form-group">
+          <label class="form-label" id="submitPriceLabel">Price (₦)</label>
+          <div class="price-row"><span class="naira-sign">₦</span><input class="price-input" type="number" id="submitPrice" placeholder="e.g. 105000" min="1"/></div>
+          <div class="form-hint" id="recentPricesHint"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Your Name / Handle (optional)</label><input class="form-input" type="text" id="submitAuthor" placeholder="e.g. MarketWoman_Oshodi"/></div>
+        <button class="big-btn" id="submitBtn" onclick="submitPrice()">📤 Submit Price</button>
+        <div class="form-note">All reports are public. Verified sellers get a ✅ badge.</div>
+      </div>
+      <div class="why-box">
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:16px;text-transform:uppercase">Why Report?</div>
+        <div class="why-item"><span style="font-size:20px;flex-shrink:0">📊</span><span class="why-text">When you know the average price, no trader can overcharge you.</span></div>
+        <div class="why-item"><span style="font-size:20px;flex-shrink:0">🤝</span><span class="why-text">Together we track REAL inflation — not the government's version.</span></div>
+        <div class="why-item"><span style="font-size:20px;flex-shrink:0">🏪</span><span class="why-text">Sellers who post prices get contacted directly by buyers.</span></div>
+        <div class="why-item"><span style="font-size:20px;flex-shrink:0">🧮</span><span class="why-text">Every report makes the data stronger for 200 million Nigerians.</span></div>
+        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">🏪 SELLER PERKS</div>
+          <div class="why-item"><span style="font-size:18px;flex-shrink:0">✅</span><span class="why-text">Verified badge on all your listings</span></div>
+          <div class="why-item"><span style="font-size:18px;flex-shrink:0">📞</span><span class="why-text">Buyers contact you directly for bulk orders</span></div>
+          <div class="why-item"><span style="font-size:18px;flex-shrink:0">📍</span><span class="why-text">Your shop shows on the price map</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SELLERS -->
+  <div id="view-sellers" class="hidden">
+    <div id="sellerDashboard"></div>
+    <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:var(--green);margin-bottom:4px">🏪 Verified Sellers Directory</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Contact sellers directly for bulk orders and precise market location</div>
+    <div id="sellersGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px"></div>
+  </div>
+
+  <!-- EARN -->
+  <div id="view-earn" class="hidden">
+    <div class="earn-header"><h2>💰 How to Earn from NaijaPriceWatch</h2><p style="font-size:13px;opacity:.85;line-height:1.6;margin-top:4px">Turn community data into real income — your roadmap from day 1 to scale</p></div>
+    <div class="tier-box" style="border-top-color:#22c55e"><div class="tier-head"><span class="tier-tag" style="color:#22c55e;border-color:#22c55e">TIER 1</span><span style="font-size:14px;color:var(--text2)">Start Now (0 users needed)</span></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">📢</span><span class="method-name">Google AdSense</span></div><div class="method-desc">Host the site and add AdSense. Nigerian CPMs: ~$0.30–$0.80 per 1,000 views. Apply once live at adsense.google.com</div></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">🛒</span><span class="method-name">Jumia / Konga Affiliate</span></div><div class="method-desc">Add "Buy on Jumia →" links with your affiliate code. Jumia pays 3–11% per sale. Sign up at affiliates.jumia.com.ng</div></div>
+    </div>
+    <div class="tier-box" style="border-top-color:var(--gold)"><div class="tier-head"><span class="tier-tag" style="color:var(--gold);border-color:var(--gold)">TIER 2</span><span style="font-size:14px;color:var(--text2)">500+ Daily Users</span></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">✅</span><span class="method-name">Sponsored Verified Badges</span></div><div class="method-desc">Supermarkets pay ₦15,000–₦50,000/month for a "✓ Verified Store" badge. They get credibility, you get paid.</div></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">📲</span><span class="method-name">WhatsApp Price Alert Subscription</span></div><div class="method-desc">Users pay ₦500/month for alerts like "Rice dropped ₦8k in Lagos this week." Use Paystack for subscriptions.</div></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">🤝</span><span class="method-name">Brand Partnerships</span></div><div class="method-desc">FMCG brands (Dangote, Honeywell) pay for banner ads and data reports when you have engaged users.</div></div>
+    </div>
+    <div class="tier-box" style="border-top-color:var(--red)"><div class="tier-head"><span class="tier-tag" style="color:var(--red);border-color:var(--red)">TIER 3</span><span style="font-size:14px;color:var(--text2)">Scale (5,000+ users)</span></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">📊</span><span class="method-name">Sell Aggregated Data</span></div><div class="method-desc">World Bank, NGOs, and financial firms buy clean anonymized price data. $50–$200/month CSV subscriptions to institutions.</div></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">🏢</span><span class="method-name">B2B Dashboard</span></div><div class="method-desc">Procurement managers and restaurants pay ₦50,000–₦200,000/month for a business dashboard.</div></div>
+      <div class="method-card"><div class="method-top"><span style="font-size:22px">📱</span><span class="method-name">Mobile App (AdMob)</span></div><div class="method-desc">Convert to mobile app. 10,000 daily active users earns $200–$1,000/month passively from AdMob ads.</div></div>
+    </div>
+    <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:16px;font-size:12px;color:var(--text2);line-height:1.7"><strong style="color:var(--gold)">🔑 The key:</strong> Get the site live on Vercel (free). Share in WhatsApp groups, Twitter/X, Facebook. 1,000 daily users in 3 months is realistic with consistent sharing. After that, the monetization layers stack.</div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="view-admin" class="hidden">
+    <div style="background:linear-gradient(135deg,#1a0800,#3d1a00);color:#fff;border-radius:var(--radius-lg);padding:24px;margin-bottom:20px">
+      <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:900;margin-bottom:4px">🔐 Owner Admin Dashboard</div>
+      <div style="font-size:13px;opacity:.8">Full backend access — live data from your Supabase database</div>
+    </div>
+    <button class="export-btn" onclick="exportData()">📥 Export All Data (JSON)</button>
+    <button class="export-btn" style="background:var(--blue)" onclick="refreshAdmin()">🔄 Refresh Data</button>
+    <div class="stat-grid" id="adminStats"></div>
+    <div class="admin-section"><div class="admin-section-title">⚡ Live Activity Feed</div><div id="activityFeed"></div></div>
+    <div class="admin-section">
+      <div class="admin-section-title">📊 All Price Reports <span id="priceCount" style="font-size:11px;color:var(--text3);font-weight:400"></span></div>
+      <div style="overflow-x:auto"><table class="admin-table"><thead><tr><th>Item</th><th>Price</th><th>State</th><th>Shop</th><th>Reporter</th><th>Date</th><th>Seller?</th><th>Action</th></tr></thead><tbody id="adminPriceTbody"></tbody></table></div>
+    </div>
+    <div class="admin-section">
+      <div class="admin-section-title">💬 All Comments <span id="commentCount" style="font-size:11px;color:var(--text3);font-weight:400"></span></div>
+      <div style="overflow-x:auto"><table class="admin-table"><thead><tr><th>Author</th><th>Item</th><th>Comment</th><th>Likes</th><th>Date</th><th>Action</th></tr></thead><tbody id="adminCommentTbody"></tbody></table></div>
+    </div>
+    <div class="admin-section">
+      <div class="admin-section-title">👤 Registered Sellers</div>
+      <div style="overflow-x:auto"><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>State</th><th>Shop</th><th>Joined</th></tr></thead><tbody id="adminSellersTbody"></tbody></table></div>
+    </div>
+  </div>
+
+</main>
+
+<footer id="appFooter" class="hidden" style="border-top:1px solid var(--border);padding:14px 24px;font-size:10px;color:var(--text3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;max-width:1200px;margin:0 auto">
+  <span>Built for 🇳🇬 Naija · Community-powered · No government involvement</span>
+  <span>Powered by Supabase · No ads · Just truth</span>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════
+// SUPABASE CONFIG — YOUR LIVE DATABASE
+// ═══════════════════════════════════════════
+const SUPABASE_URL = 'https://olbrgcyjgelfwxzdomyl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sYnJnY3lqZ2VsZnd4emRvbXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MzExODcsImV4cCI6MjA5NTIwNzE4N30.7R_SgkSIDjJROiwcEGDSEZpgcSvaFESK6LE65o2wdTY';
+const ADMIN_PIN = 'naija2024admin';
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ═══════════════════════════════════════════
+// STATES & ITEMS
+// ═══════════════════════════════════════════
+const STATES = ["Lagos","Abuja","Kano","Ibadan","Port Harcourt","Benin City","Enugu","Owerri","Kaduna","Onitsha","Warri","Calabar","Ilorin","Jos","Maiduguri","Sokoto","Uyo","Asaba","Akure","Abeokuta"];
+
+const BASE_ITEMS = [
+  {id:"rice50",label:"Rice (50kg bag)",unit:"bag",icon:"🌾",category:"Food"},
+  {id:"garri50",label:"Garri (50kg bag)",unit:"bag",icon:"🥣",category:"Food"},
+  {id:"palmoil",label:"Palm Oil (25 litres)",unit:"25L",icon:"🫙",category:"Food"},
+  {id:"beans50",label:"Beans (50kg bag)",unit:"bag",icon:"🫘",category:"Food"},
+  {id:"tomatoes",label:"Tomatoes (basket)",unit:"basket",icon:"🍅",category:"Food"},
+  {id:"yam",label:"Yam (tuber, big)",unit:"tuber",icon:"🍠",category:"Food"},
+  {id:"bread",label:"Bread (sliced loaf)",unit:"loaf",icon:"🍞",category:"Food"},
+  {id:"eggs",label:"Eggs (crate 30)",unit:"crate",icon:"🥚",category:"Food"},
+  {id:"chicken",label:"Chicken (1kg)",unit:"kg",icon:"🍗",category:"Food"},
+  {id:"fish",label:"Fresh Fish (1kg)",unit:"kg",icon:"🐟",category:"Food"},
+  {id:"onions",label:"Onions (medium bag)",unit:"bag",icon:"🧅",category:"Food"},
+  {id:"pepper",label:"Pepper (1kg)",unit:"kg",icon:"🌶️",category:"Food"},
+  {id:"plantain",label:"Plantain (bunch)",unit:"bunch",icon:"🍌",category:"Food"},
+  {id:"pap",label:"Ogi / Pap (kg)",unit:"kg",icon:"🥛",category:"Food"},
+  {id:"semovita",label:"Semovita (1.5kg)",unit:"pack",icon:"🌾",category:"Food"},
+  {id:"indomie",label:"Indomie (carton 40pcs)",unit:"carton",icon:"🍜",category:"Food"},
+  {id:"sugar",label:"Sugar (50kg bag)",unit:"bag",icon:"🍬",category:"Food"},
+  {id:"groundnut_oil",label:"Groundnut Oil (4 litres)",unit:"4L",icon:"🥜",category:"Food"},
+  {id:"beef",label:"Beef (1kg)",unit:"kg",icon:"🥩",category:"Food"},
+  {id:"vegetables",label:"Ugu / Waterleaf (bunch)",unit:"bunch",icon:"🥬",category:"Food"},
+  {id:"crayfish",label:"Crayfish (cup)",unit:"cup",icon:"🦐",category:"Food"},
+  {id:"stockfish",label:"Stockfish (medium)",unit:"piece",icon:"🐠",category:"Food"},
+  {id:"oha",label:"Oha Leaf (bunch)",unit:"bunch",icon:"🌿",category:"Food"},
+  {id:"petrol",label:"Petrol (per litre)",unit:"litre",icon:"⛽",category:"Energy"},
+  {id:"cookinggas",label:"Cooking Gas (12.5kg)",unit:"cylinder",icon:"🔥",category:"Energy"},
+  {id:"diesel",label:"Diesel (per litre)",unit:"litre",icon:"🛢️",category:"Energy"},
+  {id:"kerosene",label:"Kerosene (per litre)",unit:"litre",icon:"🕯️",category:"Energy"},
+  {id:"electricity",label:"Electricity (prepaid 20 units)",unit:"20kWh",icon:"⚡",category:"Energy"},
+  {id:"danfo",label:"Danfo/Bus Fare (local)",unit:"trip",icon:"🚌",category:"Transport"},
+  {id:"keke",label:"Keke Napep (short trip)",unit:"trip",icon:"🛺",category:"Transport"},
+  {id:"okada",label:"Okada (short ride)",unit:"ride",icon:"🏍️",category:"Transport"},
+  {id:"cement",label:"Cement (50kg bag)",unit:"bag",icon:"🏗️",category:"Building"},
+  {id:"iron_rod",label:"Iron Rod (12mm, 12m)",unit:"rod",icon:"🔩",category:"Building"},
+  {id:"blocks",label:"Sandcrete Blocks (per 100)",unit:"100pcs",icon:"🧱",category:"Building"},
+  {id:"roofsheet",label:"Roof Iron Sheet (per piece)",unit:"piece",icon:"🏠",category:"Building"},
+  {id:"tiles",label:"Floor Tiles (per m²)",unit:"m²",icon:"⬛",category:"Building"},
+  {id:"paint",label:"Paint (20 litres)",unit:"20L",icon:"🎨",category:"Building"},
+  {id:"plywood",label:"Plywood Sheet (8x4ft)",unit:"sheet",icon:"🪵",category:"Building"},
+  {id:"sand",label:"Sharp Sand (per trip)",unit:"trip",icon:"⛱️",category:"Building"},
+  {id:"gravel",label:"Gravel/Granite (per trip)",unit:"trip",icon:"🪨",category:"Building"},
+  {id:"soap",label:"Omo Detergent (1kg)",unit:"kg",icon:"🧼",category:"Household"},
+  {id:"water",label:"Sachet Water (bag 20)",unit:"bag",icon:"💧",category:"Household"},
+  {id:"phone_data",label:"Phone Data (1GB MTN)",unit:"1GB",icon:"📱",category:"Household"},
+  {id:"diapers",label:"Pampers Diapers (pack)",unit:"pack",icon:"👶",category:"Household"},
+];
+
+// ═══════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════
+const STATE = {
+  role: null, currentUser: null, isAdmin: false,
+  prices: [], comments: [], sellers: [], customItems: [],
+  view: 'dashboard', activeCategory: 'All',
+  expandedCard: null,
+  myId: 'u_' + Math.random().toString(36).slice(2),
+  chartInst: null,
+};
+
+const LOCAL_USER_KEY = 'npw_user_v4';
+const LOCAL_MYID_KEY = 'npw_myid_v4';
+
+function getItems() { return [...BASE_ITEMS, ...STATE.customItems]; }
+const fmt = n => '₦' + Number(n).toLocaleString('en-NG');
+function timeAgo(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function stopProp(e) { e.stopPropagation(); }
+function showToast(msg, type='success', dur=3500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type; t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), dur);
+}
+function setLoaderStatus(msg) {
+  const el = document.getElementById('loaderStatus');
+  if (el) el.textContent = msg;
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.onload = async function() {
+  // Restore session
+  try {
+    const saved = localStorage.getItem(LOCAL_USER_KEY);
+    if (saved) STATE.currentUser = JSON.parse(saved);
+    const savedId = localStorage.getItem(LOCAL_MYID_KEY);
+    if (savedId) STATE.myId = savedId;
+    else localStorage.setItem(LOCAL_MYID_KEY, STATE.myId);
+  } catch(e) {}
+
+  // Populate state dropdowns
+  STATES.forEach(s => {
+    ['stateFilter','trendState','submitState','authState'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { const o = document.createElement('option'); o.value = s; o.textContent = s; el.appendChild(o); }
+    });
+  });
+
+  setLoaderStatus('Loading prices from database...');
+  await loadAllData();
+
+  setTimeout(() => {
+    document.getElementById('loader').style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById('loader').style.display = 'none';
+      if (STATE.currentUser) {
+        STATE.role = 'seller';
+        showApp();
+      } else {
+        document.getElementById('roleGate').classList.remove('hidden');
+      }
+    }, 500);
+  }, 1800);
+};
+
+// ═══════════════════════════════════════════
+// LOAD DATA FROM SUPABASE
+// ═══════════════════════════════════════════
+async function loadAllData() {
+  try {
+    setLoaderStatus('Fetching live prices...');
+    const [pricesRes, commentsRes, sellersRes, customRes] = await Promise.all([
+      db.from('prices').select('*').order('created_at', {ascending: false}).limit(500),
+      db.from('comments').select('*').order('created_at', {ascending: false}).limit(300),
+      db.from('sellers').select('id,name,email,phone,state,shop,location,is_google,joined,created_at'),
+      db.from('custom_items').select('*'),
+    ]);
+    STATE.prices = pricesRes.data || [];
+    STATE.comments = commentsRes.data || [];
+    STATE.sellers = sellersRes.data || [];
+    STATE.customItems = (customRes.data || []).map(i => ({...i, isCustom: true}));
+    setLoaderStatus('✅ Live data loaded!');
+  } catch(e) {
+    setLoaderStatus('⚠️ Using cached data...');
+  }
+}
+
+// ═══════════════════════════════════════════
+// SHOW APP
+// ═══════════════════════════════════════════
+function showApp() {
+  ['appHeader','tickerBar','appNav','appMain','appFooter'].forEach(id => {
+    document.getElementById(id).classList.remove('hidden');
+  });
+  populateItemSelects();
+  updateHeader();
+  renderTicker();
+  setView('dashboard');
+  // Set up realtime subscription
+  setupRealtime();
+}
+
+function setupRealtime() {
+  try {
+    db.channel('public:prices')
+      .on('postgres_changes', {event: 'INSERT', schema: 'public', table: 'prices'}, payload => {
+        STATE.prices.unshift(payload.new);
+        updateHeader();
+        renderTicker();
+        if (STATE.view === 'dashboard') renderDashboard();
+        showToast('📊 New price submitted: ' + (getItems().find(i=>i.id===payload.new.item)?.label || payload.new.item), 'success', 2500);
+      })
+      .on('postgres_changes', {event: 'INSERT', schema: 'public', table: 'comments'}, payload => {
+        STATE.comments.unshift(payload.new);
+        updateHeader();
+      })
+      .subscribe();
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function setRole(role) {
+  STATE.role = role;
+  document.getElementById('roleGate').classList.add('hidden');
+  if (role === 'seller' && !STATE.currentUser) showAuthModal();
+  else showApp();
+}
+
+function showAuthModal(mode='signup') {
+  STATE.authMode = mode;
+  document.getElementById('authModal').classList.remove('hidden');
+  updateAuthModal();
+}
+
+function updateAuthModal() {
+  const s = STATE.authMode === 'signup';
+  document.getElementById('authTitle').textContent = s ? 'Create Seller Account' : 'Seller Login';
+  document.getElementById('authSubtext').textContent = s ? 'Join Naija sellers sharing real prices' : 'Welcome back!';
+  document.getElementById('authBtnText').textContent = s ? 'Create Account' : 'Login';
+  document.getElementById('signupExtra').classList.toggle('hidden', !s);
+  document.getElementById('authToggleText').innerHTML = s ?
+    'Already have an account? <a onclick="toggleAuthMode()">Login here</a>' :
+    'No account? <a onclick="toggleAuthMode()">Create one free</a>';
+  document.getElementById('authErr').classList.add('hidden');
+}
+
+function toggleAuthMode() {
+  STATE.authMode = STATE.authMode === 'signup' ? 'login' : 'signup';
+  updateAuthModal();
+}
+
+function googleSignIn() {
+  const name = prompt('What is your name or shop name?', 'My Shop');
+  if (!name) return;
+  const fakeUser = {
+    id: 'google_' + Date.now(),
+    name, email: name.toLowerCase().replace(/\s/g,'') + '@gmail.com',
+    phone: '', state: 'Lagos', shop: '', location: '',
+    is_google: true, joined: new Date().toISOString().slice(0,10)
+  };
+  STATE.currentUser = fakeUser;
+  localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(fakeUser));
+  document.getElementById('authModal').classList.add('hidden');
+  showToast('✅ Signed in with Google! Welcome ' + name);
+  showApp();
+}
+
+function validatePassword(pw) {
+  if (pw.length < 6) return 'Password must be at least 6 characters';
+  if (!/[A-Z]/.test(pw)) return 'Must contain at least one capital letter';
+  if (!/[0-9]/.test(pw)) return 'Must contain at least one number';
+  return null;
+}
+
+async function submitAuth() {
+  const btn = document.getElementById('authSubmitBtn');
+  const errEl = document.getElementById('authErr');
+  errEl.classList.add('hidden');
+  const email = document.getElementById('authEmail').value.trim();
+  const pw = document.getElementById('authPassword').value;
+  if (!email) { errEl.textContent = 'Please enter your email'; errEl.classList.remove('hidden'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Please wait...';
+
+  if (STATE.authMode === 'signup') {
+    const name = document.getElementById('authName').value.trim();
+    const phone = document.getElementById('authPhone').value.trim();
+    const state = document.getElementById('authState').value;
+    const shop = document.getElementById('authShop').value.trim();
+    if (!name) { errEl.textContent = 'Please enter your name'; errEl.classList.remove('hidden'); btn.disabled=false; btn.textContent='Create Account'; return; }
+    const pwErr = validatePassword(pw);
+    if (pwErr) { errEl.textContent = pwErr; errEl.classList.remove('hidden'); btn.disabled=false; btn.textContent='Create Account'; return; }
+
+    // Check email not already used
+    const {data: existing} = await db.from('sellers').select('id').eq('email', email).single();
+    if (existing) { errEl.textContent = 'Email already registered. Please login.'; errEl.classList.remove('hidden'); btn.disabled=false; btn.textContent='Create Account'; return; }
+
+    // Simple hash (in production use Supabase Auth bcrypt)
+    const pwHash = btoa(unescape(encodeURIComponent(pw)));
+    const newSeller = { name, email, phone, state, shop, location: shop, pw_hash: pwHash, is_google: false, joined: new Date().toISOString().slice(0,10) };
+    const {data, error} = await db.from('sellers').insert([newSeller]).select().single();
+    if (error) { errEl.textContent = 'Error creating account. Try again.'; errEl.classList.remove('hidden'); btn.disabled=false; btn.textContent='Create Account'; return; }
+
+    STATE.currentUser = data;
+    STATE.sellers.unshift(data);
+    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(data));
+    document.getElementById('authModal').classList.add('hidden');
+    showToast('🎉 Account created! Welcome ' + name);
+    showApp();
+
+  } else {
+    const {data: seller, error} = await db.from('sellers').select('*').eq('email', email).single();
+    if (error || !seller) { errEl.textContent = 'Email not found'; errEl.classList.remove('hidden'); btn.disabled=false; btn.textContent='Login'; return; }
+    const pwHash = btoa(unescape(encodeURIComponent(pw)));
+    if (seller.pw_hash !== pwHash) { errEl.textContent = 'Wrong password'; errEl.classList.remove('hidden'); btn.disabled=false; btn.textContent='Login'; return; }
+    STATE.currentUser = seller;
+    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(seller));
+    document.getElementById('authModal').classList.add('hidden');
+    showToast('✅ Welcome back, ' + seller.name + '!');
+    showApp();
+  }
+  btn.disabled = false;
+  document.getElementById('authBtnText').textContent = STATE.authMode === 'signup' ? 'Create Account' : 'Login';
+}
+
+function handleUserClick() {
+  if (STATE.currentUser) {
+    if (confirm('Logged in as ' + STATE.currentUser.name + '\n\nClick OK to logout')) {
+      STATE.currentUser = null; STATE.role = null;
+      localStorage.removeItem(LOCAL_USER_KEY);
+      showToast('Logged out', 'warning');
+      setTimeout(() => window.location.reload(), 800);
+    }
+  } else { showAuthModal('login'); }
+}
+
+// ═══════════════════════════════════════════
+// HEADER + TICKER
+// ═══════════════════════════════════════════
+function updateHeader() {
+  const pill = document.getElementById('userPill');
+  if (STATE.currentUser) {
+    pill.classList.remove('hidden');
+    document.getElementById('userNameDisplay').textContent = STATE.currentUser.name.split(' ')[0];
+    document.getElementById('userAvatarBtn').textContent = STATE.currentUser.name[0].toUpperCase();
+  }
+  document.getElementById('statReports').textContent = STATE.prices.length;
+  document.getElementById('statComments').textContent = STATE.comments.length;
+}
+
+function renderTicker() {
+  const items = getItems().slice(0, 20);
+  const snippets = items.map(it => {
+    const latest = STATE.prices.filter(p => p.item === it.id).sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    if (!latest) return null;
+    return `<span class="ticker-item">${it.icon} ${it.label.split('(')[0].trim()}: <strong>${fmt(latest.price)}</strong> ${latest.state}</span>`;
+  }).filter(Boolean);
+  if (!snippets.length) {
+    document.getElementById('tickerContent').innerHTML = '<span class="ticker-item">🇳🇬 Be the first to report prices in your area! Click "Report Price" above.</span>';
+    return;
+  }
+  const html = snippets.join('') + snippets.join('');
+  document.getElementById('tickerContent').innerHTML = html;
+}
+
+function populateItemSelects() {
+  const items = getItems();
+  ['submitItem','trendItem'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    items.forEach(i => { const o = document.createElement('option'); o.value = i.id; o.textContent = i.icon + ' ' + i.label; el.appendChild(o); });
+  });
+}
+
+// ═══════════════════════════════════════════
+// VIEW ROUTING
+// ═══════════════════════════════════════════
+function setView(v) {
+  STATE.view = v;
+  document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+  const viewEl = document.getElementById('view-' + v);
+  if (viewEl) viewEl.classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  if (v === 'dashboard') renderDashboard();
+  else if (v === 'trends') renderTrend();
+  else if (v === 'submit') updatePriceHint();
+  else if (v === 'sellers') renderSellers();
+  else if (v === 'admin') renderAdmin();
+}
+
+// ═══════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════
+function renderDashboard() {
+  const items = getItems();
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const stateFilter = document.getElementById('stateFilter')?.value || 'All States';
+  const cats = ['All', ...new Set(items.map(i => i.category))];
+  document.getElementById('catPills').innerHTML = cats.map(c =>
+    `<button class="cat-pill${STATE.activeCategory===c?' active':''}" onclick="STATE.activeCategory='${c}';renderDashboard()">${c}</button>`
+  ).join('');
+
+  let display = items;
+  if (STATE.activeCategory !== 'All') display = display.filter(i => i.category === STATE.activeCategory);
+  if (search) display = display.filter(i => i.label.toLowerCase().includes(search));
+
+  const summary = display.map(it => {
+    let subs = STATE.prices.filter(p => p.item === it.id);
+    if (stateFilter !== 'All States') subs = subs.filter(p => p.state === stateFilter);
+    subs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const newest = subs[0];
+    const older = subs.find(s => {
+      if (!newest) return false;
+      const diff = (new Date(newest.created_at) - new Date(s.created_at)) / 86400000;
+      return diff > 30;
+    });
+    const pct = newest && older ? ((newest.price - older.price) / older.price * 100).toFixed(1) : null;
+    return { ...it, latest: newest, count: subs.length, pctChange: pct, commentCount: STATE.comments.filter(c => c.item === it.id).length, subs };
+  });
+
+  document.getElementById('priceGrid').innerHTML = summary.map(item => `
+    <div class="card${STATE.expandedCard===item.id?' expanded':''}" onclick="toggleCard('${item.id}')">
+      <div class="card-top"><span class="card-icon">${item.icon}</span><span class="card-cat">${item.category}${item.isCustom?'<span class="new-badge">NEW</span>':''}</span></div>
+      <div class="card-name">${item.label}</div>
+      ${item.latest ? `
+        <div class="card-price">${fmt(item.latest.price)}</div>
+        <div class="card-meta"><span>📍${item.latest.state}</span><span>${item.latest.date||''}</span></div>
+        ${item.pctChange !== null ? `<div class="card-change ${parseFloat(item.pctChange)>0?'up':'down'}">${parseFloat(item.pctChange)>0?'▲':'▼'} ${Math.abs(item.pctChange)}% (30d)</div>` : ''}
+        <div class="card-footer"><span>${item.count} report${item.count!==1?'s':''}</span><span style="color:var(--green)">💬 ${item.commentCount}</span></div>
+        <div class="card-actions">
+          <button class="card-act-btn" onclick="stopProp(event);openMap('${item.id}')">📍 Map</button>
+          <button class="card-act-btn" onclick="stopProp(event);goToTrend('${item.id}')">📈 Trend</button>
+        </div>
+        ${STATE.expandedCard===item.id ? renderExpanded(item) : ''}
+      ` : `<div class="no-data">No reports yet — <a href="#" onclick="setView('submit');return false" style="color:var(--green);font-weight:700">be first!</a></div>`}
+    </div>
+  `).join('');
+}
+
+function toggleCard(id) {
+  STATE.expandedCard = STATE.expandedCard === id ? null : id;
+  renderDashboard();
+}
+
+function goToTrend(itemId) {
+  setView('trends');
+  setTimeout(() => { document.getElementById('trendItem').value = itemId; renderTrend(); }, 100);
+}
+
+function renderExpanded(item) {
+  const cheapest = [...item.subs].sort((a,b) => a.price - b.price).slice(0,5);
+  const listHTML = cheapest.map((s,i) => {
+    const seller = STATE.sellers.find(sel => sel.name === s.author);
+    return `<div class="listing-row${i===0?' cheapest':''}">
+      <div>
+        <div class="listing-shop">${esc(s.shop||'Unknown Shop')}${i===0?'<span class="listing-cheap-badge">CHEAPEST</span>':''}</div>
+        <div class="listing-loc">📍${esc(s.state)}${s.location?', '+esc(s.location):''}</div>
+        ${seller?`<div class="listing-seller-link" onclick="stopProp(event);contactSeller('${seller.id}')">🏪 ${esc(seller.name)} — Contact Seller</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="listing-price">${fmt(s.price)}</div>
+        <button class="map-btn" onclick="stopProp(event);openMapForShop('${esc(s.shop||'')}','${esc(s.state)}','${esc(s.location||'')}','${item.id}')">📍</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const recentComments = STATE.comments.filter(c => c.item === item.id).slice(0,2);
+  return `<div class="listings-section" onclick="stopProp(event)">
+    <div class="listings-title">💰 Where to Buy — Cheapest First</div>
+    ${listHTML || '<div style="font-size:11px;color:var(--text3);font-style:italic">No shop data yet</div>'}
+    ${recentComments.length ? `
+      <div style="margin-top:10px">
+        <div class="listings-title">💬 Latest Comments</div>
+        ${recentComments.map(c=>`<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:4px;font-size:11px;border:1px solid var(--border)"><strong style="color:var(--green)">${esc(c.author)}</strong>: ${esc((c.text||'').slice(0,80))}${(c.text||'').length>80?'...':''}</div>`).join('')}
+        <a href="#" onclick="stopProp(event);goToTrend('${item.id}');return false" style="font-size:11px;color:var(--green);font-weight:700">See all comments →</a>
+      </div>` : ''}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════
+function openMap(itemId) {
+  const item = getItems().find(i => i.id === itemId);
+  if (!item) return;
+  const subs = STATE.prices.filter(p => p.item === itemId).sort((a,b) => a.price - b.price).slice(0,6);
+  const q = encodeURIComponent(item.label.split('(')[0].trim() + ' market Nigeria');
+  document.getElementById('mapModalTitle').textContent = `📍 ${item.icon} ${item.label} — Markets`;
+  document.getElementById('mapIframe').src = `https://www.google.com/maps/embed/v1/search?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFmBWY&q=${q}`;
+  document.getElementById('marketList').innerHTML = subs.map((s,i) => `
+    <div class="market-item${i===0?' cheapest':''}">
+      <div><h4>${esc(s.shop||'Market')} ${i===0?'🏆':''}</h4><p>📍 ${esc(s.state)}${s.location?', '+esc(s.location):''}</p></div>
+      <div style="text-align:right">
+        <div class="market-price">${fmt(s.price)}</div>
+        <a class="directions-btn" href="https://www.google.com/maps/search/${encodeURIComponent((s.shop||item.label)+' '+s.state+' Nigeria')}" target="_blank">Directions →</a>
+      </div>
+    </div>`).join('') || '<p style="color:var(--text3);font-size:12px;text-align:center;padding:16px">No location data yet for this item</p>';
+  document.getElementById('mapModal').classList.remove('hidden');
+}
+
+function openMapForShop(shop, state, location, itemId) {
+  const item = getItems().find(i => i.id === itemId);
+  const q = encodeURIComponent(`${shop||item?.label} ${location||state} Nigeria`);
+  document.getElementById('mapModalTitle').textContent = `📍 ${shop||state}`;
+  document.getElementById('mapIframe').src = `https://www.google.com/maps/embed/v1/search?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFmBWY&q=${q}`;
+  document.getElementById('marketList').innerHTML = `<div class="market-item"><div><h4>${esc(shop||state)}</h4><p>📍 ${esc(location||state)}</p></div><a class="directions-btn" href="https://www.google.com/maps/search/${q}" target="_blank">Open in Google Maps →</a></div>`;
+  document.getElementById('mapModal').classList.remove('hidden');
+}
+
+function closeMap() { document.getElementById('mapModal').classList.add('hidden'); }
+
+// ═══════════════════════════════════════════
+// CONTACT SELLER
+// ═══════════════════════════════════════════
+function contactSeller(sellerId) {
+  const seller = STATE.sellers.find(s => s.id === sellerId);
+  if (!seller) return;
+  document.getElementById('contactSellerName').textContent = seller.name;
+  document.getElementById('contactDetails').innerHTML = `
+    ${seller.shop?`<div class="contact-info-row"><span style="font-size:20px">🏪</span><div><div class="contact-detail">${esc(seller.shop)}</div><div class="contact-label">Shop</div></div></div>`:''}
+    ${seller.state?`<div class="contact-info-row"><span style="font-size:20px">📍</span><div><div class="contact-detail">${esc(seller.state)}</div><div class="contact-label">State</div></div></div>`:''}
+    ${seller.phone?`<div class="contact-info-row"><span style="font-size:20px">📞</span><div><div class="contact-detail">${esc(seller.phone)}</div><div class="contact-label">Phone</div></div></div>`:''}
+    ${seller.email?`<div class="contact-info-row"><span style="font-size:20px">📧</span><div><div class="contact-detail">${esc(seller.email)}</div><div class="contact-label">Email</div></div></div>`:''}`;
+  const phone = (seller.phone||'').replace(/\D/g,'');
+  const msg = encodeURIComponent(`Hi ${seller.name}! I found your shop on NaijaPriceWatch. Please share your current prices.`);
+  document.getElementById('whatsappBtn').onclick = () => window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+  document.getElementById('contactModal').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════
+// TRENDS
+// ═══════════════════════════════════════════
+function renderTrend() {
+  const itemId = document.getElementById('trendItem')?.value;
+  const stateFilter = document.getElementById('trendState')?.value || 'All States';
+  const item = getItems().find(i => i.id === itemId);
+  if (!item) return;
+  document.getElementById('chartTitle').textContent = `${item.icon} ${item.label} — Price Trend${stateFilter !== 'All States' ? ' (' + stateFilter + ')' : ''}`;
+
+  let subs = STATE.prices.filter(p => p.item === itemId);
+  if (stateFilter !== 'All States') subs = subs.filter(p => p.state === stateFilter);
+  subs.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+  const byMonth = {};
+  subs.forEach(s => {
+    const m = (s.date || s.created_at?.slice(0,7) || '').slice(0,7);
+    if (!m) return;
+    if (!byMonth[m]) byMonth[m] = [];
+    byMonth[m].push(s.price);
+  });
+  const labels = Object.keys(byMonth).sort();
+  const data = labels.map(m => Math.round(byMonth[m].reduce((a,b) => a+b, 0) / byMonth[m].length));
+
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  if (STATE.chartInst) STATE.chartInst.destroy();
+  STATE.chartInst = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Avg Price (₦)', data,
+      borderColor: '#007A3D', backgroundColor: 'rgba(0,122,61,0.08)',
+      borderWidth: 3, pointBackgroundColor: '#F4B000', pointRadius: 5, pointHoverRadius: 8,
+      tension: 0.4, fill: true
+    }]},
+    options: {
+      responsive: true,
+      plugins: { legend: {display:false}, tooltip: {callbacks: {label: ctx => '₦' + Number(ctx.raw).toLocaleString('en-NG')}}},
+      scales: {
+        x: {grid:{color:'rgba(0,0,0,.05)'}, ticks:{font:{family:'DM Mono',size:11},color:'#888'}},
+        y: {grid:{color:'rgba(0,0,0,.05)'}, ticks:{font:{family:'DM Mono',size:11},color:'#888',callback:v=>'₦'+Number(v).toLocaleString()}}
+      }
+    }
+  });
+
+  if (labels.length >= 2) {
+    const first = data[0], last = data[data.length-1];
+    const pct = ((last-first)/first*100).toFixed(1);
+    const sumEl = document.getElementById('trendSummary');
+    sumEl.innerHTML = `<span>Change over period:</span><span class="trend-pct ${parseFloat(pct)>0?'up':'down'}" style="margin-left:8px">${parseFloat(pct)>0?'▲':'▼'} ${Math.abs(pct)}% · ${fmt(first)} → ${fmt(last)}</span>`;
+    sumEl.classList.remove('hidden');
+  }
+
+  document.getElementById('trendComments').innerHTML = renderCommentsHTML(itemId);
+}
+
+// ═══════════════════════════════════════════
+// COMMENTS
+// ═══════════════════════════════════════════
+function renderCommentsHTML(itemId) {
+  const item = getItems().find(i => i.id === itemId);
+  const itemComments = STATE.comments.filter(c => c.item === itemId).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  return `<div class="comments-section">
+    <div class="comments-title">💬 Community Talk · ${item?.icon} ${item?.label.split('(')[0].trim()}</div>
+    <div class="comment-form">
+      <textarea rows="2" id="commentText-${itemId}" placeholder="Share your experience with prices in your area... Naija Pidgin or English welcome!"></textarea>
+      <div class="comment-form-footer">
+        <span style="font-size:11px;color:var(--text3)">${STATE.currentUser ? STATE.currentUser.name + ' ✅' : 'Posting as Anonymous'}</span>
+        <button class="comment-post-btn" onclick="submitComment('${itemId}')">Post Comment</button>
+      </div>
+    </div>
+    ${itemComments.length === 0 ?
+      '<div style="text-align:center;padding:24px;color:var(--text3);font-style:italic">No comments yet. Be the first! 🗣️</div>' :
+      itemComments.map(c => `
+        <div class="comment">
+          <div class="comment-head">
+            <div class="avatar${c.is_seller?' seller':''}">${(c.author||'?')[0].toUpperCase()}</div>
+            <div><span class="comment-author">${esc(c.author||'Anonymous')}</span>${c.is_seller?'<span class="comment-badge seller-badge">🏪 Seller</span>':''}</div>
+            <span class="comment-time">${timeAgo(c.created_at)}</span>
+          </div>
+          <div class="comment-text">${esc(c.text)}</div>
+          <div class="comment-actions">
+            <button class="like-btn${(c.liked_by||[]).includes(STATE.myId)?' liked':''}" onclick="toggleLike('${c.id}','${itemId}')">👍 ${c.likes_count||0} Like</button>
+            <button class="reply-btn" onclick="toggleReplyForm('${c.id}','${itemId}')">💬 Reply</button>
+          </div>
+          <div id="replyForm-${c.id}" class="reply-form hidden">
+            <textarea rows="2" id="replyText-${c.id}" placeholder="Write a reply..."></textarea>
+            <div class="reply-form-footer"><button class="reply-send-btn" onclick="submitReply('${c.id}','${itemId}')">Send</button></div>
+          </div>
+        </div>`).join('')}
+  </div>`;
+}
+
+function toggleReplyForm(id) {
+  document.getElementById('replyForm-' + id)?.classList.toggle('hidden');
+}
+
+async function toggleLike(commentId, itemId) {
+  const comment = STATE.comments.find(c => c.id === commentId);
+  if (!comment) return;
+  const liked = (comment.liked_by||[]).includes(STATE.myId);
+  const newCount = (comment.likes_count||0) + (liked ? -1 : 1);
+  const newLikedBy = liked ? (comment.liked_by||[]).filter(x=>x!==STATE.myId) : [...(comment.liked_by||[]), STATE.myId];
+  STATE.comments = STATE.comments.map(c => c.id===commentId ? {...c, likes_count:newCount, liked_by:newLikedBy} : c);
+  await db.from('comments').update({likes_count: newCount}).eq('id', commentId);
+  if (STATE.view === 'trends') renderTrend();
+}
+
+async function submitComment(itemId) {
+  const text = document.getElementById('commentText-' + itemId)?.value.trim();
+  if (!text) { showToast('Please write something first', 'error'); return; }
+  const newComment = {
+    item: itemId,
+    author: STATE.currentUser ? STATE.currentUser.name : 'Anonymous_' + Math.floor(Math.random()*999),
+    text, is_seller: !!STATE.currentUser,
+    likes_count: 0, date: new Date().toISOString().slice(0,10)
+  };
+  const {data, error} = await db.from('comments').insert([newComment]).select().single();
+  if (error) { showToast('Error posting comment', 'error'); return; }
+  STATE.comments.unshift(data);
+  document.getElementById('commentText-' + itemId).value = '';
+  showToast('Comment posted! 🎉');
+  updateHeader();
+  if (STATE.view === 'trends') renderTrend();
+}
+
+async function submitReply(commentId, itemId) {
+  const text = document.getElementById('replyText-' + commentId)?.value.trim();
+  if (!text) return;
+  // Store replies as a new comment with parent reference (simplified)
+  const reply = {
+    item: itemId,
+    author: STATE.currentUser ? STATE.currentUser.name : 'Anonymous_' + Math.floor(Math.random()*999),
+    text: '↩️ ' + text, is_seller: !!STATE.currentUser,
+    likes_count: 0, date: new Date().toISOString().slice(0,10)
+  };
+  const {data} = await db.from('comments').insert([reply]).select().single();
+  if (data) {
+    STATE.comments.unshift(data);
+    document.getElementById('replyText-' + commentId).value = '';
+    document.getElementById('replyForm-' + commentId)?.classList.add('hidden');
+    showToast('Reply posted!');
+    if (STATE.view === 'trends') renderTrend();
+  }
+}
+
+// ═══════════════════════════════════════════
+// SUBMIT PRICE
+// ═══════════════════════════════════════════
+function updatePriceHint() {
+  const itemId = document.getElementById('submitItem')?.value;
+  if (!itemId) return;
+  const item = getItems().find(i => i.id === itemId);
+  if (item) document.getElementById('submitPriceLabel').textContent = `Price (₦) · per ${item.unit}`;
+  const recent = STATE.prices.filter(p => p.item === itemId).sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,3);
+  const hint = document.getElementById('recentPricesHint');
+  if (hint) hint.textContent = recent.length ? 'Recent: ' + recent.map(r => `${fmt(r.price)} (${r.state})`).join(' · ') : '';
+}
+
+async function submitPrice() {
+  const itemId = document.getElementById('submitItem').value;
+  const state = document.getElementById('submitState').value;
+  const price = Number(document.getElementById('submitPrice').value);
+  const shop = document.getElementById('submitShop').value.trim();
+  const location = document.getElementById('submitLocation').value.trim();
+  const authorInput = document.getElementById('submitAuthor').value.trim();
+  const author = STATE.currentUser ? STATE.currentUser.name : (authorInput || 'Anonymous_' + Math.floor(Math.random()*999));
+
+  if (!price || price <= 0) { showToast('Please enter a valid price', 'error'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting to database...';
+
+  const entry = {
+    item: itemId, state, price,
+    shop: shop || (STATE.currentUser?.shop || ''),
+    location: location || (STATE.currentUser?.location || ''),
+    author, is_seller: !!STATE.currentUser,
+    date: new Date().toISOString().slice(0,10)
+  };
+
+  const {data, error} = await db.from('prices').insert([entry]).select().single();
+  if (error) {
+    showToast('Error submitting. Check connection.', 'error');
+    btn.disabled = false; btn.textContent = '📤 Submit Price';
+    return;
+  }
+
+  STATE.prices.unshift(data);
+  updateHeader(); renderTicker();
+  showToast('✅ Price submitted! Now live for all Nigerians to see!');
+  document.getElementById('submitPrice').value = '';
+  document.getElementById('submitShop').value = '';
+  document.getElementById('submitLocation').value = '';
+  btn.disabled = false; btn.textContent = '📤 Submit Price';
+  setTimeout(() => setView('dashboard'), 1200);
+}
+
+// ═══════════════════════════════════════════
+// CUSTOM COMMODITY
+// ═══════════════════════════════════════════
+async function addCustomCommodity() {
+  const name = document.getElementById('newCommodityName').value.trim();
+  const emoji = document.getElementById('newCommodityEmoji').value.trim() || '📦';
+  const cat = document.getElementById('newCommodityCategory').value;
+  const unit = document.getElementById('newCommodityUnit').value.trim() || 'unit';
+  if (!name) { showToast('Please enter a commodity name', 'error'); return; }
+
+  const newItem = { label: name, icon: emoji, category: cat, unit };
+  const {data, error} = await db.from('custom_items').insert([newItem]).select().single();
+  if (error) { showToast('Error adding commodity', 'error'); return; }
+
+  STATE.customItems.push({...data, id: 'custom_' + data.id, isCustom: true});
+  populateItemSelects();
+  document.getElementById('newCommodityName').value = '';
+  document.getElementById('newCommodityEmoji').value = '';
+  document.getElementById('newCommodityUnit').value = '';
+  showToast(`✅ "${name}" added! All users can now report prices for it.`);
+  renderDashboard();
+}
+
+// ═══════════════════════════════════════════
+// SELLERS PAGE
+// ═══════════════════════════════════════════
+function renderSellers() {
+  const user = STATE.currentUser;
+  const dashEl = document.getElementById('sellerDashboard');
+  if (user) {
+    const myPrices = STATE.prices.filter(p => p.author === user.name);
+    dashEl.innerHTML = `<div class="seller-dash">
+      <div><h2>🏪 Welcome, ${esc(user.name)}</h2><p>${esc(user.shop||'Seller Account')} · ${esc(user.state||'')}${user.is_google?' · Google Account':''}</p></div>
+      <div class="seller-dash-stats">
+        <div class="sds"><span>${myPrices.length}</span><span>MY REPORTS</span></div>
+        <div class="sds"><span>${STATE.sellers.length}</span><span>SELLERS</span></div>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <strong style="font-size:13px;color:var(--green)">My Recent Reports</strong>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        ${myPrices.slice(0,5).map(p => {
+          const it = getItems().find(i => i.id === p.item);
+          return `<div class="activity-item"><div class="activity-dot"></div><span>${it?.icon||'📦'} ${it?.label||p.item} — <strong>${fmt(p.price)}</strong> · ${p.state}</span><span class="activity-time">${timeAgo(p.created_at)}</span></div>`;
+        }).join('') || '<div style="font-size:12px;color:var(--text3);font-style:italic;padding:8px">No reports yet — <a href="#" onclick="setView(\'submit\');return false" style="color:var(--green);font-weight:700">add your first price →</a></div>'}
+      </div>
+    </div>`;
+  } else {
+    dashEl.innerHTML = `<div style="background:var(--surface2);border:2px dashed var(--border2);border-radius:var(--radius);padding:24px;text-align:center;margin-bottom:20px">
+      <div style="font-size:32px;margin-bottom:8px">🏪</div>
+      <div style="font-family:'Sora',sans-serif;font-size:16px;font-weight:700;color:var(--green);margin-bottom:4px">Are you a seller?</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Create a free account to get verified and let buyers contact you</div>
+      <button onclick="showAuthModal('signup')" style="padding:10px 24px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">Create Seller Account Free</button>
+    </div>`;
+  }
+
+  const grid = document.getElementById('sellersGrid');
+  if (!STATE.sellers.length) {
+    grid.innerHTML = '<div style="font-size:13px;color:var(--text3);font-style:italic;grid-column:1/-1;text-align:center;padding:24px">No registered sellers yet. Be the first!</div>';
+    return;
+  }
+  grid.innerHTML = STATE.sellers.map(s => {
+    const count = STATE.prices.filter(p => p.author === s.name).length;
+    return `<div style="background:#fff;border:2px solid var(--border);border-radius:var(--radius);padding:18px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="avatar seller">${s.name[0].toUpperCase()}</div>
+        <div><div style="font-weight:700;font-size:14px">${esc(s.name)}</div><div style="font-size:10px;color:var(--green);font-weight:600">✅ Verified Seller</div></div>
+      </div>
+      ${s.shop?`<div style="font-size:12px;color:var(--text2);margin-bottom:4px">🏪 ${esc(s.shop)}</div>`:''}
+      ${s.state?`<div style="font-size:12px;color:var(--text3);margin-bottom:4px">📍 ${esc(s.state)}</div>`:''}
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${count} reports · Joined ${s.joined||''}</div>
+      <button onclick="contactSeller('${s.id}')" style="width:100%;padding:9px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">📞 Contact Seller</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════
+function showPinPrompt() {
+  document.getElementById('pinOverlay').classList.remove('hidden');
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinErr').classList.add('hidden');
+}
+
+function checkPin() {
+  if (document.getElementById('pinInput').value === ADMIN_PIN) {
+    STATE.isAdmin = true;
+    document.getElementById('pinOverlay').classList.add('hidden');
+    document.getElementById('adminNavBtn').style.display = 'block';
+    document.getElementById('earnNavBtn').style.display = 'block';
+    showToast('🔓 Admin access granted! Earn + Admin tabs unlocked.');
+    setView('admin');
+  } else {
+    document.getElementById('pinErr').textContent = 'Incorrect PIN';
+    document.getElementById('pinErr').classList.remove('hidden');
+  }
+}
+
+async function refreshAdmin() {
+  await loadAllData();
+  renderAdmin();
+  showToast('🔄 Data refreshed from Supabase');
+}
+
+function renderAdmin() {
+  if (!STATE.isAdmin) { showPinPrompt(); return; }
+  const userPrices = STATE.prices.filter(p => p.is_seller !== undefined);
+
+  document.getElementById('adminStats').innerHTML = [
+    [STATE.prices.length, 'Total Reports'],
+    [STATE.prices.filter(p=>p.is_seller).length, 'Seller Reports'],
+    [STATE.comments.length, 'Comments'],
+    [STATE.sellers.length, 'Sellers'],
+    [STATE.customItems.length, 'Custom Items'],
+    [new Set(STATE.prices.map(p=>p.state)).size, 'States Covered'],
+  ].map(([n,l]) => `<div class="stat-card"><div class="stat-card-n">${n}</div><div class="stat-card-l">${l}</div></div>`).join('');
+
+  const recent = [...STATE.prices.slice(0,5), ...STATE.comments.slice(0,5)].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,10);
+  document.getElementById('activityFeed').innerHTML = recent.map(a => {
+    const item = getItems().find(i => i.id === a.item);
+    const isPrice = !!a.price;
+    return `<div class="activity-item"><div class="activity-dot" style="background:${isPrice?'var(--green)':'var(--gold)'}"></div><span>${isPrice?'💰':'💬'} ${item?.label||a.item} · ${isPrice?fmt(a.price):esc((a.text||'').slice(0,50))} · <strong>${esc(a.author||'')}</strong> · ${esc(a.state||'')}</span><span class="activity-time">${timeAgo(a.created_at)}</span></div>`;
+  }).join('') || '<div style="color:var(--text3);font-style:italic;font-size:12px">No activity yet</div>';
+
+  document.getElementById('priceCount').textContent = `(${STATE.prices.length} total)`;
+  document.getElementById('adminPriceTbody').innerHTML = STATE.prices.slice(0,100).map(p => {
+    const it = getItems().find(i => i.id === p.item);
+    return `<tr><td>${it?.icon||''} ${esc(it?.label||p.item)}</td><td><strong>${fmt(p.price)}</strong></td><td>${esc(p.state)}</td><td>${esc(p.shop||'—')}</td><td>${esc(p.author||'Anon')}</td><td>${p.date||''}</td><td>${p.is_seller?'✅':'—'}</td><td><button class="del-btn" onclick="deletePrice('${p.id}')">Delete</button></td></tr>`;
+  }).join('');
+
+  document.getElementById('commentCount').textContent = `(${STATE.comments.length} total)`;
+  document.getElementById('adminCommentTbody').innerHTML = STATE.comments.slice(0,100).map(c => {
+    const it = getItems().find(i => i.id === c.item);
+    return `<tr><td>${esc(c.author||'')}${c.is_seller?'<span class="comment-badge seller-badge" style="margin-left:4px;font-size:8px">S</span>':''}</td><td>${esc(it?.label||c.item)}</td><td>${esc((c.text||'').slice(0,80))}</td><td>${c.likes_count||0}</td><td>${c.date||''}</td><td><button class="del-btn" onclick="deleteComment('${c.id}')">Delete</button></td></tr>`;
+  }).join('');
+
+  document.getElementById('adminSellersTbody').innerHTML = STATE.sellers.map(s =>
+    `<tr><td>${esc(s.name)}</td><td>${esc(s.email||'—')}</td><td>${esc(s.phone||'—')}</td><td>${esc(s.state||'—')}</td><td>${esc(s.shop||'—')}</td><td>${s.joined||''}</td></tr>`
+  ).join('') || '<tr><td colspan="6" style="color:var(--text3);font-style:italic">No sellers yet</td></tr>';
+}
+
+async function deletePrice(id) {
+  if (!confirm('Delete this price report?')) return;
+  await db.from('prices').delete().eq('id', id);
+  STATE.prices = STATE.prices.filter(p => p.id !== id);
+  showToast('Deleted', 'warning');
+  renderAdmin(); updateHeader();
+}
+
+async function deleteComment(id) {
+  if (!confirm('Delete this comment?')) return;
+  await db.from('comments').delete().eq('id', id);
+  STATE.comments = STATE.comments.filter(c => c.id !== id);
+  showToast('Deleted', 'warning');
+  renderAdmin(); updateHeader();
+}
+
+function exportData() {
+  const data = { exportDate: new Date().toISOString(), prices: STATE.prices, comments: STATE.comments, sellers: STATE.sellers.map(s=>({...s,pw_hash:undefined})), customItems: STATE.customItems };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `NaijaPriceWatch_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast('📥 Data exported!');
+}
+</script>
+</body>
+</html>
